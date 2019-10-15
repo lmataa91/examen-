@@ -1,0 +1,76 @@
+#include <DHT.h>//libreria sensor 
+ #include <Ethernet.h>//libreria ethernet
+#include <SPI.h>//libreria ethernet
+#include <MySQL_Connection.h>
+#include<MySQL_Cursor.h>
+// CONSTRUCTOR DEL OBJETO DHT RECIBE EL PIN EN EL QUE SE CONECTA EL SENSOR
+// Y TAMBIEN RECIBE EL TIPO DE SENSOR QUE VAMOS A CONECTAR
+DHT dht(A2, DHT11);
+char user[]=" arduino";
+String estado;
+int hum, temp;//constantes para humedad
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFF, 0xEE}; // Direccion MAC
+byte ip[] = { 192,168,0,10 }; // Direccion IP del Arduino
+byte server[] = { 192,168,0,14}; // Direccion IP del servidor192,168,0,14
+ EthernetClient cliente;
+ 
+void setup() {
+  // PREPARAR LA COMUNICACION SERIAL
+  Serial.begin(9600);
+  Ethernet.begin(mac, ip);
+  Serial.println("Prueba del sensor DHT11");
+  
+  // PREPARAR LA LIBRERIA PARA COMUNICARSE CON EL SENSOR
+  dht.begin();
+}
+ 
+void loop() {
+  // ESPERAR ENTRE MEDICIONES, NECESARIO PARA EL BUEN FUNCIONAMIENTO
+  delay(2000);
+  
+  // LEER LA HUMEDAD USANDO EL METRODO READHUMIDITY
+  float hum = dht.readHumidity();
+  // LEER LA TEMPERATURA USANDO EL METRODO READTEMPERATURE
+  float temp = dht.readTemperature();
+ 
+  // REVISAR QUE LOS RESULTADOS SEAN VALORES NUMERICOS VALIDOS, INDICANDO QUE LA COMUNICACION ES CORRECTA
+  if (isnan(hum) || isnan(temp)) {
+    Serial.println("Falla al leer el sensor DHT11!");
+    return;
+  }
+ 
+  // IMPRIMIR RESULTADO AL MONITOR SERIAL
+  Serial.print("Humedad: ");
+  Serial.print(hum);
+  Serial.print(" % ");
+  Serial.print("Temperatura: ");
+  Serial.print(temp);
+  Serial.println(" *C");
+
+  Serial.println("Envio de dato, conectando...");
+  if (cliente.connect(server, 80)>0) {  // Conexion con el servidor(client.connect(server, 80)>0
+    cliente.print("GET /Esteequipo/Discolocal(C:)/arduino/mysql.php?valor=");
+    
+    cliente.print("tabla_sensor" );// Enviamos los datos por GET
+
+    cliente.print("&hum_php=");
+    cliente.print(hum);
+    cliente.print("&temp_php=");
+    cliente.print(temp);
+    cliente.println("User-Agent: Arduino 1.0");
+    cliente.println();
+    Serial.println("Envio con exito (http://localhost/phpmyadmin/sql.php?db=dht_se&table=tabla_sensor&pos=0)");
+    delay(1000);
+    } else {
+    Serial.println("Fallo en la conexion");
+        delay(2000);
+  }
+if (!cliente.connected()) {
+    Serial.println("Desconectando");
+    delay(1000);
+  }
+  cliente.stop();
+  cliente.flush();
+  
+  //delay(5000); // Espero un minuto antes de tomar otra muestra
+}
